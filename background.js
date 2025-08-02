@@ -15,22 +15,37 @@ async function getHeatmapUrl(tab_url, store_id)
     let strava_url = new URL(tab_url);
 
     // Attempt to set map type based on sport url parameter.
-    // Walk and hike are the same as run. Default to 'all'.
-    let sport = strava_url.searchParams.get('sport')?.toLowerCase() || 'all';
-    if  (sport == 'walk' || sport == 'hike') {
-        sport = 'run';
-    }
+    // Support all Strava sport types
+    let sport = strava_url.searchParams.get('sport') || 'All';
+    
+    // Map Strava sport values to heatmap types
     let map_type;
-    switch (sport) {
+    switch (sport.toLowerCase()) {
         case 'all':
         case 'ride':
         case 'run':
         case 'water':
         case 'winter':
-            map_type = sport;
+            map_type = sport.toLowerCase();
+            break;
+        case 'walk':
+        case 'hike':
+        case 'trail run':
+        case 'trail running':
+            map_type = 'run'; // Walk, hike, and trail activities use the same heatmap as run
+            break;
+        case 'swim':
+        case 'swimming':
+            map_type = 'water'; // Swimming uses water heatmap
+            break;
+        case 'ski':
+        case 'skiing':
+        case 'snowboard':
+        case 'snowboarding':
+            map_type = 'winter'; // Winter sports use winter heatmap
             break;
         default:
-            map_type = 'all';
+            map_type = 'all'; // Default to all activities
     }
 
     // Attempt to set map color based on gColor url parameter. Default to  'hot'.
@@ -49,41 +64,75 @@ async function getHeatmapUrl(tab_url, store_id)
             map_color = 'hot';
     }
 
-
-    const cookies = new Map(
-        await Promise.all(
-            cookie_names.map(async name => [
-                name,
-                await getCookieValue(name, tab_url, store_id)
-            ]).filter(cookie => cookie[1] !== null)
-        )
-    );
+    // Use Strava domain for cookie retrieval
+    const strava_domain = 'https://www.strava.com';
+    
+    const cookie_promises = cookie_names.map(async name => {
+        // Try multiple domains for cookie retrieval
+        let value = await getCookieValue(name, strava_domain, store_id);
+        if (value === null) {
+            // Try with the actual tab URL
+            value = await getCookieValue(name, tab_url, store_id);
+        }
+        if (value === null) {
+            // Try with just the domain part
+            const domain = new URL(tab_url).origin;
+            value = await getCookieValue(name, domain, store_id);
+        }
+        if (value === null) {
+            // Try with .strava.com domain
+            value = await getCookieValue(name, 'https://strava.com', store_id);
+        }
+        if (value === null) {
+            // Try with www.strava.com domain
+            value = await getCookieValue(name, 'https://www.strava.com', store_id);
+        }
+        return value !== null ? [name, value] : null;
+    });
+    
+    const cookie_results = await Promise.all(cookie_promises);
+    const cookies = new Map(cookie_results.filter(cookie => cookie !== null));
 
     let heatmap_url = url_prefix + map_type + '/' + map_color + url_suffix;
 
+    // Convert Map to plain object for transmission
+    const cookiesObject = {};
+    for (let [key, value] of cookies.entries()) {
+        cookiesObject[key] = value;
+    }
+    
     return {
         error: cookies.size !== cookie_names.length,
         heatmap_url,
         map_color,
         map_type,
-        cookies,
+        cookies: cookiesObject,
     };
 }
 
 async function getCookieValue(name, url, store_id)
 {
-    let cookie = await browser.cookies.get({
+    let cookie = await chrome.cookies.get({
         url: url,
         name: name,
         storeId: store_id
     });
-
+    
     return (cookie) ? cookie.value : null;
 }
 
-browser.runtime.onMessage.addListener(async function (_message, sender, _sendResponse) {
-    return getHeatmapUrl(
-        sender.tab.url,
-        sender.tab.cookieStoreId
-    )
+// Service worker message listener for Manifest V3
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Handle the message asynchronously
+    getHeatmapUrl(sender.tab.url, sender.tab.cookieStoreId)
+        .then(result => {
+            sendResponse(result);
+        })
+        .catch(error => {
+            console.error('Error in getHeatmapUrl:', error);
+            sendResponse({ error: true, message: 'Failed to get heatmap URL' });
+        });
+    
+    // Return true to indicate we will respond asynchronously
+    return true;
 });

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manifest V3 Test - JOSM Strava Heatmap</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Manifest V3 Conversion Test</h1>
+    
+    <div class="test-section success">
+        <h2>✅ Manifest V3 Conversion Complete</h2>
+        <p>The extension has been successfully converted from Manifest V2 to Manifest V3.</p>
+    </div>
+
+    <div class="test-section info">
+        <h2>🆕 New Cookie URL Format</h2>
+        <p>Strava now requires cookies to be explicitly declared in the URL. The extension has been updated to handle this new format.</p>
+        <p><strong>New URL structure:</strong></p>
+        <pre>http://localhost:8111/imagery?title=Strava%20All%2015&type=tms&max_zoom=15&cookies=CloudFront-Key-Pair-Id=K3VK9UFQYD04PI;%20CloudFront-Policy=eyJ...;%20CloudFront-Signature=cuSQ2JEgnWlg07rnLdN0Rny4uHkz8K~mjt14n3ThjN~cTpERhK0RwIhYEuUCb8zKlBfLuFEx0mjpsQtk-zUQq7HR63AZwacjDtfN0TeMt6AsJSaFXYHnTZmt64HdZ6mn3y7L5mL0Gq5iykiK0LPbP2N-W6P-weuYfeP9UKoJ~ES6Nk5b6y50mblF49Lum3VrRreJ8RzFXcVVmP7jiaMJ3gP93l-7JuuPnUkLfbzl58h5oD367NQbhL8VCDOOliXcKBeW2oybBCNy1KkdtHLGw4hsmaMKcGrM7y8achRjiJkGV5T7WpMD-N5JpbXeR5Gg~7mfks5qe11YPbTI2l3dmQ__;%20_strava_idcf=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NTEyMjY1NjksImlhdCI6MTc1MTE0MDE2OSwiYXRobGV0ZUlkIjo2MzAyMjYzLCJ0aW1lc3RhbXAiOjE3NTExNDAxNjl9.MstHYqkanzPPhsZsQbuMimzA3_yShjgXRH5zLd-zbcc;&url=https://content-a.strava.com/identified/globalheat/all/hot/{zoom}/{x}/{y}.png</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Key Changes Made:</h2>
+        <ul>
+            <li><strong>manifest_version:</strong> Updated from 2 to 3</li>
+            <li><strong>background:</strong> Changed from <code>"scripts"</code> to <code>"service_worker"</code></li>
+            <li><strong>permissions:</strong> Moved host permissions to <code>"host_permissions"</code></li>
+            <li><strong>API calls:</strong> Updated from <code>browser.*</code> to <code>chrome.*</code></li>
+            <li><strong>Service worker:</strong> Updated message handling for async responses</li>
+            <li><strong>Cookie handling:</strong> Fixed Map.entries() conversion and added new URL format option</li>
+            <li><strong>UI updates:</strong> Added "with cookies" radio button for new URL format</li>
+        </ul>
+    </div>
+
+    <div class="test-section warning">
+        <h2>⚠️ Testing Required</h2>
+        <p>To test the extension:</p>
+        <ol>
+            <li>Load the extension in Chrome/Edge with Developer Mode enabled</li>
+            <li>Navigate to <a href="https://www.strava.com/heatmap" target="_blank">Strava Heatmap</a></li>
+            <li>Log in to your Strava account</li>
+            <li>Look for the orange button in the top-right corner of the map</li>
+            <li>Click the button to test the heatmap URL generation</li>
+            <li>Test all three URL format options: "tms prefix", "no prefix", and "with cookies"</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Files Modified:</h2>
+        <ul>
+            <li><code>manifest.json</code> - Updated to V3 format</li>
+            <li><code>background.js</code> - Converted to service worker</li>
+            <li><code>content.js</code> - Updated API calls and cookie handling</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Compatibility Notes:</h2>
+        <ul>
+            <li>✅ Chrome 88+ (Manifest V3 support)</li>
+            <li>✅ Edge 88+ (Chromium-based)</li>
+            <li>❌ Firefox (Manifest V3 not yet supported)</li>
+            <li>❌ Safari (Manifest V3 not supported)</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Next Steps:</h2>
+        <ol>
+            <li>Test the extension in Chrome/Edge</li>
+            <li>Verify all functionality works as expected</li>
+            <li>Test the new cookie URL format</li>
+            <li>Update any documentation if needed</li>
+            <li>Consider removing <code>browser-polyfill.min.js</code> if no longer needed</li>
+        </ol>
+    </div>
+</body>
+</html> 

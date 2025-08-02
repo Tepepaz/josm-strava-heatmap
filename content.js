@@ -59,9 +59,10 @@ async function openModalDialog(e)
 {
     // Attempt to build the heatmap url from key pair, policy, and signature cookies
     try {
-        let response = await browser.runtime.sendMessage({
+        let response = await chrome.runtime.sendMessage({
             "name": "getHeatmapUrl",
         });
+        
         if (response.error) {
             setModalHtmlError(
                 "Error: missing cookies", 
@@ -76,7 +77,7 @@ async function openModalDialog(e)
             );
         }
     } catch(err) {
-        console.log(err);
+        console.error('Error in openModalDialog:', err);
         setModalHtmlError("Unknown error", "Couldn't build url.  Check console for errors.");
     }
 
@@ -94,7 +95,19 @@ async function openModalDialog(e)
 function buildJosmUrl(title, cookies, heatmap_url)
 {
     const josm_url = new URL('http://127.0.0.1:8111/imagery');
-    const cookies_value = cookies.entries().map(([key, value]) => `${key}=${value}`).toArray().join(';');
+    
+    // Handle cookies - ensure it's a Map or convert from object
+    let cookiesMap;
+    if (cookies instanceof Map) {
+        cookiesMap = cookies;
+    } else if (cookies && typeof cookies === 'object') {
+        cookiesMap = new Map(Object.entries(cookies));
+    } else {
+        console.error('Invalid cookies format:', cookies);
+        cookiesMap = new Map();
+    }
+    
+    const cookies_value = Array.from(cookiesMap.entries()).map(([key, value]) => `${key}=${value}`).join('; ');
     josm_url.searchParams.set('title', title);
     josm_url.searchParams.set('type', 'tms');
     josm_url.searchParams.set('max_zoom', '15'); // the max zoom that Strava heatmaps support
@@ -113,6 +126,17 @@ function setModalHtmlSuccess(heatmap_url, map_color, map_type, cookies)
     let encoded_heatmap_url = encodeURIComponent(heatmap_url);
     let open_in_id_url = `https://www.openstreetmap.org/edit?editor=id#background=custom:${encoded_heatmap_url}`;
     let heatmap_url_tms = `tms:${heatmap_url}`;
+    // Handle cookies for the URL with cookies format
+    let cookiesMap;
+    if (cookies instanceof Map) {
+        cookiesMap = cookies;
+    } else if (cookies && typeof cookies === 'object') {
+        cookiesMap = new Map(Object.entries(cookies));
+    } else {
+        cookiesMap = new Map();
+    }
+    
+    let heatmap_url_with_cookies = `${heatmap_url}?cookies=${encodeURIComponent(Array.from(cookiesMap.entries()).map(([key, value]) => `${key}=${value}`).join('; '))}`;
 
     document.querySelector('#jsh-modal-header').textContent = "Open heatmap in OSM editor";
     document.querySelector('#jsh-modal-body').innerHTML = `
@@ -124,17 +148,7 @@ function setModalHtmlSuccess(heatmap_url, map_color, map_type, cookies)
                 Open in iD
             </a>
         </p>
-        <p>Or, copy the URL to manually add a custom imagery layer in your editor of choice: </p>
-        <div class="btn-group btn-group-sm" data-toggle="buttons">
-            <label id="jsh-tms-prefix-true" class="btn btn-default active" data-tms-prefix="true">
-                <input name="tms_prefix" type="radio" value="true">
-                tms prefix
-            </label>
-            <label id="jsh-tms-prefix-false" class="btn btn-default" data-tms-prefix="false">
-                <input name="tms_prefix" type="radio" value="false">
-                no prefix
-            </label>
-        </div>
+        <p>Copy the URL to manually add a custom imagery layer in your editor of choice: </p>
         <code>
             <button id="jsh-click-to-copy" class="copy-button btn btn-xs" aria-label="Copy to clipboard" title="Copy to clipboard">
                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000">
@@ -147,14 +161,8 @@ function setModalHtmlSuccess(heatmap_url, map_color, map_type, cookies)
     `;
     document.querySelector("#jsh-open-in-josm").setAttribute("href", open_in_josm_url);
     document.querySelector("#jsh-open-in-id").setAttribute("href", open_in_id_url);
-    document.querySelector("#jsh-imagery-url").textContent = heatmap_url_tms;
+    document.querySelector("#jsh-imagery-url").textContent = heatmap_url_with_cookies;
     document.querySelector("#jsh-click-to-copy").addEventListener("click", copyUrlToClipboard);
-    document.querySelector("#jsh-tms-prefix-true").addEventListener("click", function () {
-        document.querySelector("#jsh-imagery-url").textContent = heatmap_url_tms;
-    });
-    document.querySelector("#jsh-tms-prefix-false").addEventListener("click", function () {
-        document.querySelector("#jsh-imagery-url").textContent = heatmap_url;
-    });
 }
 
 /**
