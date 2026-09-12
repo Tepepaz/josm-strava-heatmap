@@ -1,5 +1,11 @@
-insertModalHtml();
-insertButtonHtml();
+/**
+ * Check if the current page is a Strava heatmap or maps page
+ */
+function isHeatmapPage()
+{
+    const path = window.location.pathname.toLowerCase();
+    return path.startsWith('/maps') || path.startsWith('/heatmap');
+}
 
 /**
  * Insert HTML skeleton for modal dialog box.
@@ -7,32 +13,72 @@ insertButtonHtml();
  */
 function insertModalHtml()
 {
-    document.body.insertAdjacentHTML('afterbegin', `
+    if (document.querySelector('#jsh-modal')) {
+        return;
+    }
+
+    const modalHtml = `
         <div id="jsh-modal" class="jsh-modal">
             <div id="jsh-modal-dialog" class="jsh-modal-dialog">
+                <button id="jsh-modal-close" class="jsh-modal-close" type="button" aria-label="Close modal">&times;</button>
                 <h4 id="jsh-modal-header" class="modal-header"></h4>
                 <div id="jsh-modal-body" class="modal-body"></div>
             </div>
         </div>
-    `);
-    document.querySelector('#jsh-modal').addEventListener("click", e => {
-        e.target.classList.remove('active');
-    })
+    `;
+
+    if (document.body) {
+        document.body.insertAdjacentHTML('afterbegin', modalHtml);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!document.querySelector('#jsh-modal')) {
+                document.body.insertAdjacentHTML('afterbegin', modalHtml);
+            }
+        });
+    }
+
+    // Close modal on backdrop click or close button click
+    document.addEventListener("click", e => {
+        const modal = document.querySelector('#jsh-modal');
+        if (!modal || !modal.classList.contains('active')) return;
+        if (e.target === modal || e.target.closest('#jsh-modal-close')) {
+            modal.classList.remove('active');
+        }
+    });
+
+    // Close modal on Escape key
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") {
+            const modal = document.querySelector('#jsh-modal');
+            if (modal) modal.classList.remove('active');
+        }
+    });
 }
 
 /**
  * Insert HTML for modal toggle button
  */
-async function insertButtonHtml()
+function insertButtonHtml()
 {
-    let ctrl_top_right = document.querySelector('.mapboxgl-ctrl-top-right');
-    // Sometimes the mapbox controls aren't loaded right away and we need to wait a little bit
-    for (let i = 0; ctrl_top_right === null && i < 10; i++) {
-        await new Promise(r => setTimeout(r, 300));
-        ctrl_top_right = document.querySelector('.mapboxgl-ctrl-top-right');
+    if (!isHeatmapPage()) {
+        const existingButton = document.querySelector('.jsh-modal-toggle');
+        if (existingButton) {
+            existingButton.style.display = 'none';
+        }
+        return;
     }
+
+    let existingButton = document.querySelector('.jsh-modal-toggle');
+    if (existingButton) {
+        existingButton.style.display = '';
+        return;
+    }
+
     let button = document.createElement('button');
     button.className = 'jsh-modal-toggle';
+    button.type = 'button';
+    button.title = 'Open Strava Heatmap in OSM editor (JOSM / iD)';
+    button.setAttribute('aria-label', 'Open Strava Heatmap in OSM editor');
     button.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48" fill-rule="evenodd" clip-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="2">
         <defs>
@@ -46,9 +92,24 @@ async function insertButtonHtml()
         <path d="M46 32.8H32.8V46H46zm-30.8 0H2V46h13.2zm15.4 0H17.4V46h13.2zm0-15.4H17.4v13.2h13.2zm-15.4 0H2v13.2h13.2zm30.8 0H32.8v13.2H46zM15.2 2H2v13.2h13.2zM46 2H32.8v13.2H46zM30.6 2H17.4v13.2h13.2z" fill="url(#b)"/>
         </svg>
     `;
-    ctrl_top_right.prepend(button);
+
+    // Try finding legacy Mapbox controls, modern map container, or fallback to body
+    let ctrl_top_right = document.querySelector('.mapboxgl-ctrl-top-right');
+    let mapContainer = document.querySelector('[data-testid="mre-map-container"]') ||
+                       document.querySelector('.CoreMap_mapContainer__DtgEU') ||
+                       document.querySelector('[data-cy="core-map"]');
+
+    if (ctrl_top_right) {
+        ctrl_top_right.prepend(button);
+    } else if (mapContainer) {
+        mapContainer.appendChild(button);
+    } else if (document.body) {
+        document.body.appendChild(button);
+    }
+
     button.addEventListener("click", openModalDialog);
 }
+
 
 /**
  * Event listener function to open the modal dialog box and populate its content.
@@ -183,3 +244,35 @@ function copyUrlToClipboard()
     let heatmap_url_manual_copy = document.querySelector("#jsh-imagery-url").textContent;
     navigator.clipboard.writeText(heatmap_url_manual_copy);
 }
+
+/**
+ * Initialize extension UI elements
+ */
+function init()
+{
+    insertModalHtml();
+    insertButtonHtml();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+// Watch for DOM mutations and SPA page changes
+let lastUrl = location.href;
+const observer = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        init();
+    } else if (isHeatmapPage() && !document.querySelector('.jsh-modal-toggle')) {
+        insertButtonHtml();
+    }
+});
+
+observer.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true,
+});
+

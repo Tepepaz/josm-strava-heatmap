@@ -15,8 +15,7 @@
   ],
   "content_scripts": [{
     "matches": [
-      "*://*.strava.com/heatmap*",
-      "*://*.strava.com/maps*"
+      "*://*.strava.com/*"
     ],
     "js": [
       "content.js"
